@@ -1,10 +1,76 @@
 import streamlit as st
+import pandas as pd
 st.set_page_config(
         page_title="Covid-19 Dashboard",
         page_icon=":Microbe:",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
+def fetch_url(date, country=None):
+    """
+    Function fetches the url of the most recent report.
+    :param date: datetime object
+    :param country: str
+    :return: str
+    """
+    DATA_URL = ("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/"
+                "csse_covid_19_daily_reports/{}.csv".format(date.date().strftime("%m-%d-%Y")))
+    if country == "US":
+        DATA_URL = ("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/"
+                    "csse_covid_19_daily_reports_us/{}.csv".format(date.date().strftime("%m-%d-%Y")))
+
+    return DATA_URL
+def local_css(file_name):
+    """
+    Function loads the css stylesheet
+    :param file_name: str
+    :return: None
+    """
+    with open(file_name) as f:
+        st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+@st.cache
+def load_data(DATA_URL, nrows=None):
+    """
+    Function reads data from the url and returns a dataframe
+    :param DATA_URL: str
+    :param nrows: int
+    :return: DataFrame
+    """
+    df = pd.read_csv(DATA_URL, nrows=nrows)
+
+    return df
+@st.cache(suppress_st_warning=True)
+def load_time_series():
+    """
+    Function aggregates and returns a dictionary of time series data.
+    :return: dict
+    """
+    confirmed_data = pd.read_csv(
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+    death_data = pd.read_csv(
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+    recovered_data = pd.read_csv(
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv")
+
+    confirmed_data = confirmed_data.melt(id_vars=['Province/State', 'Country/Region', 'Lat', 'Long'],
+                                         var_name="Date", value_name="Confirmed")
+    confirmed_data["Confirmed"] = confirmed_data["Confirmed"].fillna(0)
+    confirmed_data.loc[:, "Date"] = confirmed_data["Date"].apply(lambda s: pd.to_datetime(s).date())
+    death_data = death_data.melt(id_vars=['Province/State', 'Country/Region', 'Lat', 'Long'],
+                                 var_name="Date", value_name="Deaths")
+    death_data["Deaths"] = death_data["Deaths"].fillna(0)
+    death_data.loc[:, "Date"] = death_data["Date"].apply(lambda s: pd.to_datetime(s).date())
+    recovered_data = recovered_data.melt(id_vars=['Province/State', 'Country/Region', 'Lat', 'Long'],
+                                         var_name="Date", value_name="Recovered")
+    recovered_data["Recovered"] = recovered_data["Recovered"].fillna(0)
+    recovered_data.loc[:, "Date"] = recovered_data["Date"].apply(lambda s: pd.to_datetime(s).date())
+
+    return {
+        "Confirmed": confirmed_data,
+        "Deaths": death_data,
+        "Recovered": recovered_data
+    }
+
 def homepage():
     import streamlit as st
     from PIL import Image as imging
@@ -35,10 +101,6 @@ def dashboard():
     import plotly.graph_objects as go
     import plotly.io as pio
     from datetime import datetime, timedelta
-    from dashes3.utils.fetch_url import fetch_url
-    from dashes3.utils.load_data import load_data
-    from dashes3.utils.load_css import local_css
-    from dashes3.utils.load_time_series import load_time_series
     from x import figcasesprov
     from plotly.offline import plot
     @st.cache
@@ -391,8 +453,6 @@ def dashboard():
 def datapage():
     import streamlit as st
     from datetime import datetime, timedelta
-    from dashes3.utils.load_data import load_data
-    from dashes3.utils.fetch_url import fetch_url
     from PIL import Image
     from x import figcasesprov
 
